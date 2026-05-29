@@ -1,4 +1,4 @@
-# Tensor-Based Cross-Language Code Semantic Analysis
+# Toward Reliable Cross-Language Code Understanding via Tensor-Based High-Dimensional Graph Learning
 
 ## Code Organisation 
     Repository
@@ -12,7 +12,7 @@ After setting up the repository, it would contain dataset files as well.
 
 ### 1. Clone the repo
 
-       https://github.com/smallsuccful/Graph-Tensor.git
+       https://github.com/ycachy/TensorGAT.git
 
 ### 2. Installing Dependencies
 

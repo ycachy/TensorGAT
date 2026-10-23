@@ -21,7 +21,11 @@ cTpyeofStatements = ['bitfield_clause', '::', 'field_designator', 'ms_pointer_mo
 cppTpyeofStatements = ['throw_specifier','.*','field_designator', 'initializer_pair', 'signed', 'new_declarator', 'class_specifier', '>=', 'expression_statement', ')', 'primitive_type', 'new', 'concatenated_string', 'attribute_declaration', 'long', '#include', 'break', '...', 'parameter_declaration', 'pointer_declarator', '\n', 'try_statement', '[', 'private', 'declaration_list', 'dependent_type', 'if', 'optional_type_parameter_declaration', 'false', ';', 'preproc_params', '?', 'variadic_type_parameter_declaration', 'lambda_expression', 'subscript_expression', 'string_literal', 'argument_list', '+', 'delete_method_clause', ':', 'template_parameter_list', 'preproc_def', '>>=', 'template_argument_list', 'raw_string_literal', 'enum_specifier', 'type_definition', 'namespace_definition', '&&', 'call_expression', 'update_expression', '++', 'do', 'type_qualifier', 'binary_expression', 'field_declaration_list', 'optional_parameter_declaration', 'friend_declaration', 'structured_binding_declarator', 'continue_statement', 'defined', 'if_statement', 'goto_statement', 'preproc_call', 'typedef', '--', "'", '.', 'decltype', '#ifdef', 'static', '/=', 'template_type', 'return', 'namespace', 'true', 'null', '{', 'statement_identifier', 'operator_cast', '+=', 'variadic_parameter_declaration', 'template_declaration', 'placeholder_type_specifier', 'trailing_return_type', '->', 'type_identifier', 'parenthesized_expression', 'init_declarator', 'pointer_expression', 'condition_clause', 'const', '|', 'constexpr', '"', '()', '^', 'public', 'type_parameter_declaration', 'sizeof_expression', 'literal_suffix', 'translation_unit', 'case', '#else', 'explicit', 'conditional_expression', 'enum', 'alias_declaration', 'base_class_clause', 'unsigned', 'requires', '::', 'catch_clause', 'switch_statement', '==', 'attribute', '*=', '=', 'field_expression', 'parameter_pack_expansion', 'reference_declarator', '>', 'preproc_arg', '%=', 'short', 'sizeof', ',', '__attribute__', '*', 'delete', 'enumerator', 'while', 'qualified_identifier', 'else', 'unary_expression', 'char_literal', '}', '<<', 'preproc_directive', 'do_statement', '-', '#if', 'new_expression', '!', 'struct_specifier', 'abstract_array_declarator', 'using_declaration', 'preproc_ifdef', 'default', 'ERROR', 'preproc_else', 'escape_sequence', 'compound_statement', 'field_initializer_list', '|=', 'comma_expression', 'sized_type_specifier', '||', 'explicit_function_specifier', '#define', '#ifndef', 'abstract_parenthesized_declarator', ']]', '<=', 'break_statement', 'operator', 'identifier', 'preproc_function_def', 'template_method', 'attribute_specifier', 'catch', 'class', 'abstract_pointer_declarator', 'declaration', 'struct', 'typename', '<<=', 'this', 'type_descriptor', 'field_initializer', 'variadic_declarator', 'try', 'lambda_default_capture', 'requires_clause', 'user_defined_literal', 'parenthesized_declarator', 'number_literal', 'delete_expression', 'namespace_identifier', '&=', '(', 'auto', 'namespace_alias_definition', 'abstract_reference_declarator', 'return_statement', '-=', 'case_statement', ']', '#endif', 'function_declarator', '<', 'switch', 'friend', 'for', 'preproc_if', '%', 'preproc_defined', 'cast_expression', 'abstract_function_declarator', 'compound_literal_expression', 'template_template_parameter_declaration', '/', 'array_declarator', 'enumerator_list', '!=', 'goto', 'while_statement', 'nullptr', '~', 'initializer_list', 'system_lib_string', 'lambda_capture_specifier', 'template', 'inline', 'labeled_statement', 'function_definition', 'template_function', 'storage_class_specifier', 'for_range_loop', 'destructor_name', 'preproc_include', 'for_statement', '&', '^=', 'field_declaration', '>>', 'access_specifier', 'parameter_list', 'operator_name', 'field_identifier', '[[', 'continue', 'using', 'assignment_expression', 'virtual_specifier', 'u"', 'mutable', '""', 'volatile', 'ms_restrict_modifier', 'override', 'ms_pointer_modifier', 'union_specifier', 'default_method_clause', 'comment', 'dependent_name', 'register', 'linkage_specification', '#elif', 'extern', 'static_assert_declaration', 'bitfield_clause', 'static_assert', 'preproc_elif', 'virtual', 'noexcept', 'throw', 'throw_statement', 'ref_qualifier', 'virtual_function_specifier', 'protected', '[]', 'union', 'subscript_designator', 'final', 'L"', 'restrict', 'thread_local', '->*', 'fold_expression']
 # discuss req of padding??
 # maxLength = max(len(pyTypesOfStatements), len(cTpyeofStatements))
-maxLength=173
+# Legacy one-hot support remains available for old processed ``.pt`` files.
+# New experiments use 768-dimensional CodeBERT node features from
+# ``codebert_features.py`` and do not depend on this width.
+maxLength=max(len(pyTypesOfStatements), len(javaTypeofStatements),
+              len(cTpyeofStatements), len(cppTpyeofStatements)) + 1
 print(maxLength)
 import json
 import numpy as np
@@ -46,7 +50,12 @@ def oneHotEncoder(setofStatements, langType):
 
     # 遍历字典中的节点
     for i in range(len(statements_dict)):
-        idx = type_list.index(statements_dict[i]["type"])
+        try:
+            idx = type_list.index(statements_dict[i]["type"])
+        except ValueError:
+            # Reserve the final coordinate for parser node types unseen when
+            # the legacy vocabulary was frozen.
+            idx = maxLength - 1
         encodeMatrix[i][idx] = 1
         # for node_id, node_data in statements_dict.items():
     #     node_type = node_data['type']  # 获取节点的类型
@@ -103,16 +112,14 @@ def High_latitudestensor(ast, nodes_number_limit=600):
   # 构建不同类型矩阵
   ast_matric = build_edges_matrix(astOfProgram.get('astEdges', []), edge_type=0)
   cfg_matric = build_edges_matrix(astOfProgram.get('cfgEdges', []), edge_type=1)
-  ddg_matric = build_edges_matrix(astOfProgram.get('dfgEdges', []), edge_type=2)
+  # Archives use both spellings. Prefer the explicit DDG field and accept the
+  # legacy DFG name for backward compatibility.
+  ddg_edges = astOfProgram.get('ddgEdges', astOfProgram.get('dfgEdges', []))
+  ddg_matric = build_edges_matrix(ddg_edges, edge_type=2)
   ncs_matric = build_edges_matrix(astOfProgram.get('ncsEdges', []), edge_type=3)
 
-  # 如果相应的边缘列表为空，则使用astEdges构建矩阵
-  if len(astOfProgram.get('cfgEdges', [])) == 0:
-    cfg_matric = build_edges_matrix(astOfProgram.get('astEdges', []), edge_type=1)
-  if len(astOfProgram.get('ddgEdges', [])) == 0:
-    ddg_matric = build_edges_matrix(astOfProgram.get('astEdges', []), edge_type=2)
-  if len(astOfProgram.get('ncsEdges', [])) == 0:
-    ncs_matric = build_edges_matrix(astOfProgram.get('astEdges', []), edge_type=3)
+  # A missing relation is an empty view. Substituting AST edges would change
+  # the stated AST/CFG/DDG/NCS semantics and silently duplicate syntax edges.
 
   # 将矩阵打包成字典返回
   matrices = {

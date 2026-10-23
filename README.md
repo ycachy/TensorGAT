@@ -1,68 +1,47 @@
-# Toward Reliable Cross-Language Code Understanding via Tensor-Based High-Dimensional Graph Learning
+# TensorGAT
 
-## Code Organisation 
-    Repository
-    ├── helper functions
-    ├── models
-    └── trainers
+TensorGAT represents a function with four aligned graph views: abstract syntax (AST), control flow (CFG), data dependence (DDG), and natural code sequence (NCS). The revised implementation follows the paper's model definition and evaluates Python--Java function-pair matching.
 
-After setting up the repository, it would contain dataset files as well.
+## Revision status
 
-## Setting Up 
+The original release used language-specific AST-type one-hot vectors even though the paper described CodeBERT node features. It also fixed the feature width below the combined vocabulary size, substituted AST edges for missing views, and could decompose disconnected graphs jointly in a mini-batch. The revised path corrects these mismatches:
 
-### 1. Clone the repo
+- `codebert_features.py` produces frozen 768-dimensional contextual CodeBERT features aligned to graph nodes.
+- `reproducibility/data.py` preserves AST/CFG/DDG/NCS semantics and accepts both archived `ddgEdges` and `dfgEdges` field names.
+- `reproducibility/model.py` applies t-SVD and CP independently to every graph.
+- `reproducibility/make_class_splits.py` creates semantic-class-disjoint splits and deterministic within-split negatives.
+- `reproducibility/train.py` runs the full model, TensorGCN, and the `no_cp`, `no_svd`, and `no_cp_no_svd` ablations under one protocol.
 
-       https://github.com/ycachy/TensorGAT.git
+The root `TrainGAT.py`, `TrainGCN.py`, and `TrainBaseLine.py` files are retained only as historical scripts for old processed `.pt` files. They use the legacy one-hot format and are not the executable path for the revised paper.
 
-### 2. Installing Dependencies
+## Installation
 
-       pip install -r requirements.txt
+Create a Python 3.9 environment and install dependencies appropriate for the local CUDA version:
 
-Note - Pytorch and Pytorch-Geometric (+ associated dependencies) versions must be installed in accordance the compatablity of Cuda version and operating system 
+```bash
+pip install -r requirements.txt
+```
 
-### 3. Setting up Datasets
-The datasets which were used for experiments couldn't be uploaded to the repository due to file size limits. These files are to be downloaded and can be used independently for testing/running the models.
+The reported environment used PyTorch 2.5.1 with CUDA 12.4, PyTorch Geometric 2.6.1, Transformers 4.46.3, and an NVIDIA RTX 4090. The CodeBERT checkpoint is `microsoft/codebert-base`.
 
-#### 3.1 Extraction of Dataset Files
-- CodeNet Dataset - [Link](https://github.com/IBM/Project_CodeNet)
-- CWE Dataset - [Link](https://zenodo.org/records/4734050)
-- CLCDSA Dataset - [Link](https://github.com/Kawser-nerd/CLCDSA/tree/master/Source%20Codes)
-- AtCoder Dataset - [Link](https://daniel.perez.sh/research/2019/cross-language-clones/)
+## Reproducing the revised evaluation
 
-#### 3.2 Setting up Dataset Files
-- Unzip the downloaded files and extract the datasets files.
-- Place these extracted files in the root directory of this repository
+See [`reproducibility/README.md`](reproducibility/README.md) for the complete sequence:
 
-#### 3.3 Configuration of file paths
-- **Dataset paths** - After extraction of the dataset, clone pair files and non-clone pair text files must be stored in the root directory in a folder named 'CloneDetectionSrc'. 
-- **Processed Data folder** - A folder named 'cloneDetectionData' must be created  in the root directory where all the processed data files will be stored for training the model
-- **Trained Models folder** - A folder named 'cloneDetectionModels' must be created  in the root directory where all the formed model files will be stored.
-- **TestDataset** - We have provided an executable training dataset file. Please place the dataset inside the 'processed' folder and create a folder named '1' within it. Then you can run it..
+1. create class-disjoint pair manifests;
+2. precompute frozen contextual CodeBERT node features;
+3. cache per-graph t-SVD/CP preprocessing for each variant;
+4. train seeds 1234, 2025, and 3407;
+5. aggregate results and profile synchronized CUDA inference.
 
-## Usage 
+All generated features and graph caches are content-addressed or tied to a recorded configuration. Functions with more than 600 graph nodes are excluded rather than truncated.
 
-### 1. Configuration of Hyperparameters
+## Task boundary
 
-- Hyperparameters are defined inside the trainer files and can modified as per convenience. 
+The revision evaluates cross-language function-pair matching. It does not implement single-function vulnerability detection, repository-level code understanding, or an LLM baseline. Original LLM call records were unavailable, so the revised evaluation does not report unreproducible LLM scores.
 
-The hyperparameter variables explanation table is as follows : 
+## Data
 
-| dim            | Embedding size (dimension) for the model     | 64                |
-| -------------- | -------------------------------------------- | ----------------- |
-| Var Name       | Hyperparameter                               | Default Value     |
-| epochs         | #Epochs for the training                     | 25                |
-| batch_size     | Size of the data batch                       | 32                |
-| lamda          | Regulariser                                  | 0.001             |
-| use_unsup_loss | Usage of unsupervised loss in model training | True              |
-| lr             | Learning Rate (initial)                      | 0.001             |
-| optimizer      | Optimizer of loss                            | Adam              |
-| scheduler      | Learning Rate Scheduler                      | ReduceLROnPlateau |
+Datasets are not redistributed in this repository. Supply the extracted graph/source corpus with `--datasets` and use frozen JSONL pair manifests. The scripts record filtering counts and alignment coverage so that a changed corpus cannot silently reproduce a different experiment under the same name.
 
-### 2. Training Model
-       python TrainGAT.py or python TrainGCN.py
-
-### 3. Training Baseline Model
-
-       python baseLineModel.py
-### 4. AST tools
-    https://github.com/smallsuccful/Treetools.git
+The original graph-extraction utilities are available at <https://github.com/smallsuccful/Treetools.git>.

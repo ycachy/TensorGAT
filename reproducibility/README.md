@@ -64,6 +64,23 @@ python reproducibility/aggregate_results.py --runs $runs --output '<output>\resu
 
 Use `profile_inference.py` with a saved checkpoint to measure synchronized CUDA inference time and peak allocated memory. Every JSON run record contains the full configuration, selected threshold, split sizes, excluded pair counts, epoch history, logits, labels, and internal/external metrics.
 
+For a frozen query--positive--negative manifest, `evaluate_ranking_diagnostic.py` loads an existing checkpoint and its validation-selected threshold without fitting or tuning on the diagnostic set. It reports pair metrics, within-query ranking, low-lexical positive accuracy, high-lexical negative false-positive rate, and the subset in which identifier/number Jaccard favors the negative candidate. Run it once for each variant and seed, then aggregate the JSON outputs with `summarize_ranking_diagnostic.py`:
+
+```powershell
+python reproducibility/evaluate_ranking_diagnostic.py `
+  --datasets $datasets --corpus AWS `
+  --manifest '<frozen-diagnostic>.jsonl' `
+  --features '<aws-feature-index>.json' `
+  --prepared '<aws-variant-graph-cache>\index.json' `
+  --checkpoint '<runs>\full_seed1234.pt' `
+  --training-result '<runs>\full_seed1234.json' `
+  --variant full --seed 1234 `
+  --output '<diagnostic-results>\full_seed1234.json'
+
+python reproducibility/summarize_ranking_diagnostic.py `
+  --results '<diagnostic-results>' --output-dir '<diagnostic-summary>'
+```
+
 ## Scope
 
 This pipeline evaluates Python--Java function-pair matching. It does not implement single-function vulnerability detection or an LLM baseline. The original LLM call logs were unavailable, so no LLM score is reproduced by these scripts.

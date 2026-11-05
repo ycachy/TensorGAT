@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import torch
@@ -17,16 +17,53 @@ class GraphRecord:
     language: str
     source_path: Path
     ast: dict
+    _ncs_edge_index: torch.Tensor | None = field(default=None, init=False, repr=False)
 
     @property
     def num_nodes(self) -> int:
         return len(self.ast["nodeList"])
+
+    def natural_sequence_edge_index(self) -> torch.Tensor:
+        """Return NCS edges between adjacent source-code tokens.
+
+        Archived graph files encoded NCS as consecutive AST preorder ids.  The
+        corrected view is derived from Tree-sitter leaf spans so internal AST
+        nodes do not appear in the lexical sequence.
+        """
+        if self._ncs_edge_index is None:
+            from codebert_features import natural_code_sequence_edges
+
+            if self.source_path.exists():
+                edges, _ = natural_code_sequence_edges(
+                    self.ast, self.source_path.read_bytes(), self.language
+                )
+            else:
+                # Some archived corpora retain the graph JSONL and manifest but
+                # not the raw source files.  Tree-sitter AST ids are preorder
+                # ids, so preorder leaves preserve lexical token order even
+                # though consecutive *all-node* ids do not.  This fallback
+                # therefore reconstructs NCS from consecutive AST leaves and
+                # avoids reverting to the archived all-node preorder chain.
+                parents = {
+                    int(src) for src, dst in self.ast.get("astEdges", [])
+                    if 0 <= int(src) < self.num_nodes and 0 <= int(dst) < self.num_nodes
+                }
+                leaves = [index for index in range(self.num_nodes) if index not in parents]
+                edges = list(zip(leaves, leaves[1:]))
+            self._ncs_edge_index = (
+                torch.tensor(edges, dtype=torch.long).T.contiguous()
+                if edges else torch.empty((2, 0), dtype=torch.long)
+            )
+        return self._ncs_edge_index
 
     def edge_lists(self, enabled_views=(True, True, True, True)) -> list[torch.Tensor]:
         result = []
         for view, (key, enabled) in enumerate(zip(VIEW_KEYS, enabled_views)):
             if not enabled:
                 result.append(torch.empty((2, 0), dtype=torch.long))
+                continue
+            if key == "ncsEdges":
+                result.append(self.natural_sequence_edge_index())
                 continue
             # Some generators called data-dependence edges ``ddgEdges`` and
             # others called them ``dfgEdges``.  Use the available field; an
@@ -88,4 +125,3 @@ def filter_pairs_by_size(rows: list[dict], graphs: GraphCorpusIndex, max_nodes: 
         else:
             excluded.append(row)
     return kept, excluded
-

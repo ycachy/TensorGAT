@@ -29,6 +29,8 @@ LANGUAGE_ALIASES = {
     "c++": "cpp",
 }
 
+NCS_EDGE_VERSION = "source-token-leaves-v1"
+
 
 @dataclass(frozen=True)
 class AlignmentReport:
@@ -71,6 +73,42 @@ def _align_graph_nodes(ast_record: dict, source: bytes, language: str):
     graph_types = [str(node["type"]) for node in ast_record["nodeList"]]
     parsed = _parser_nodes(source, language)
     parsed_types = [node.type for node in parsed]
+    original_ids = [node.get("_original_id") for node in ast_record["nodeList"]]
+    if original_ids and all(isinstance(index, int) for index in original_ids):
+        metadata = ast_record.get("_reviewer1_comment3", {})
+        original_types = metadata.get("original_node_types")
+        if original_types:
+            matcher = SequenceMatcher(a=original_types, b=parsed_types,
+                                      autojunk=False)
+            original_to_parsed = {}
+            for block in matcher.get_matching_blocks():
+                for offset in range(block.size):
+                    original_to_parsed[block.a + offset] = block.b + offset
+            graph_to_parsed = {
+                graph_index: original_to_parsed[original_id]
+                for graph_index, original_id in enumerate(original_ids)
+                if original_id in original_to_parsed
+            }
+        else:
+            graph_to_parsed = {
+                graph_index: parsed_index
+                for graph_index, parsed_index in enumerate(original_ids)
+                if 0 <= parsed_index < len(parsed)
+                and graph_types[graph_index] == parsed_types[parsed_index]
+            }
+        aligned = [
+            parsed[graph_to_parsed[index]] if index in graph_to_parsed else None
+            for index in range(len(graph_types))
+        ]
+        matched_prefix = 0
+        for graph_index, parsed_index in enumerate(original_ids):
+            if parsed_index != graph_index or graph_index not in graph_to_parsed:
+                break
+            matched_prefix += 1
+        exact = (len(graph_types) == len(parsed_types)
+                 and len(graph_to_parsed) == len(graph_types))
+        return (graph_types, aligned, exact, len(parsed), matched_prefix,
+                len(graph_to_parsed))
     matched_prefix = 0
     for graph_type, parsed_type in zip(graph_types, parsed_types):
         if graph_type != parsed_type:
@@ -88,6 +126,43 @@ def _align_graph_nodes(ast_record: dict, source: bytes, language: str):
     aligned = [parsed[graph_to_parsed[index]] if index in graph_to_parsed else None
                for index in range(len(graph_types))]
     return graph_types, aligned, exact, len(parsed), matched_prefix, len(graph_to_parsed)
+
+
+def natural_code_sequence_edges(
+    ast_record: dict,
+    source: bytes,
+    language: str,
+) -> tuple[list[tuple[int, int]], AlignmentReport]:
+    """Connect consecutive lexical AST leaves in source-code order.
+
+    TensorGAT graph records number every AST node in preorder.  Consecutive
+    node ids therefore describe an AST traversal, not the program's natural
+    token sequence.  NCS contains only terminal syntax nodes that can be
+    aligned to source spans and orders them by their byte positions.
+    """
+    graph_types, aligned, exact, parsed_count, matched_prefix, matched_count = _align_graph_nodes(
+        ast_record, source, language
+    )
+    lexical = sorted(
+        (
+            int(node.start_byte),
+            int(node.end_byte),
+            graph_index,
+        )
+        for graph_index, node in enumerate(aligned)
+        if node is not None and node.child_count == 0 and node.end_byte > node.start_byte
+    )
+    indices = [graph_index for _, _, graph_index in lexical]
+    edges = list(zip(indices, indices[1:]))
+    report = AlignmentReport(
+        exact=exact,
+        graph_nodes=len(graph_types),
+        parsed_nodes=parsed_count,
+        matched_prefix=matched_prefix,
+        matched_nodes=matched_count,
+        lexical_value_nodes=len(indices),
+    )
+    return edges, report
 
 
 def node_texts_from_source(

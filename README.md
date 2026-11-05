@@ -7,7 +7,7 @@ TensorGAT represents a function with four aligned graph views: abstract syntax (
 The original release used language-specific AST-type one-hot vectors even though the paper described CodeBERT node features. It also fixed the feature width below the combined vocabulary size, substituted AST edges for missing views, and could decompose disconnected graphs jointly in a mini-batch. The revised path corrects these mismatches:
 
 - `codebert_features.py` produces frozen 768-dimensional contextual CodeBERT features aligned to graph nodes.
-- `reproducibility/data.py` preserves AST/CFG/DDG/NCS semantics and accepts both archived `ddgEdges` and `dfgEdges` field names.
+- `reproducibility/data.py` preserves AST/CFG/DDG/NCS semantics and accepts both archived `ddgEdges` and `dfgEdges` field names. NCS is rebuilt from consecutive Tree-sitter leaf tokens in source order; archived preorder chains are ignored.
 - `reproducibility/model.py` applies t-SVD and CP independently to every graph.
 - `reproducibility/make_class_splits.py` creates semantic-class-disjoint splits and deterministic within-split negatives.
 - `reproducibility/train.py` runs the full model, TensorGCN, and the `no_cp`, `no_svd`, and `no_cp_no_svd` ablations under one protocol.

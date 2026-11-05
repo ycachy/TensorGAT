@@ -1,15 +1,16 @@
 # Reproducible TensorGAT rerun
 
-This directory implements the model and protocol described in the revised paper. It keeps the GitHub architecture's four graph views, cyclic cross-view propagation, t-SVD preprocessing, CP structural aggregation, three GRU rounds, Set2Set pooling, and concatenation-plus-MLP pair classifier. It changes the released fixed-width one-hot node input to frozen contextual CodeBERT features so the executable model matches the paper.
+This directory implements the model and protocol described in the revised paper. It keeps the GitHub architecture's four graph views, cyclic cross-view propagation, t-SVD preprocessing, CP structural aggregation, three GRU rounds, and Set2Set pooling. It changes the released fixed-width one-hot node input to frozen contextual CodeBERT features so the executable model matches the paper. The default pair classifier remains concatenation plus an MLP; the optional small-data mode adds shared graph-encoder weights and explicit absolute-difference/product interactions.
 
 ## Corrections
 
 - `matrixFormation.py` no longer assumes a 173-dimensional vocabulary and maps unknown legacy node types to an explicit UNK column.
 - `codebert_features.py` encodes complete source files in overlapping windows, aligns Tree-sitter nodes to source offsets, pools contextual subwords, and uses a deterministic type-only fallback.
-- `data.py` reads DDG edges from `ddgEdges` (or the legacy `dfgEdges` name) and leaves missing views empty.
+- `data.py` reads DDG edges from `ddgEdges` (or the legacy `dfgEdges` name) and rebuilds NCS from consecutive Tree-sitter leaf tokens in source order instead of chaining AST preorder ids.
 - `model.py` computes t-SVD and CP data per graph. `prepare_graphs.py` caches those graph-only results before mini-batch training, which prevents batch composition from changing a graph's decomposition.
 - `make_class_splits.py` creates semantic-class-disjoint train/validation/test partitions and auditable within-split negative pairs.
 - `train.py` selects checkpoints by validation ROC-AUC and freezes a validation-F1 threshold before internal and external testing. It also records results at threshold 0.5.
+- For balanced data with few semantic families, `train.py` can resample a leakage-safe difficulty-matched negative for every training anchor and epoch, keep each positive/negative pair in one batch, and combine BCE with a within-anchor ranking loss. n1 samples within an operation family, n2 within a CWE across operation families, and n3 across CWEs. `--shared-encoder --pair-interactions` compares graph embeddings in a shared space without changing the four-view TensorGAT encoder.
 
 ## Environment
 
@@ -20,7 +21,7 @@ The reported rerun used Python 3.9, CUDA 12.4, an NVIDIA RTX 4090, and the versi
 Run commands from the repository root. The examples use PowerShell variables only to keep paths readable.
 
 ```powershell
-$datasets = 'E:\Zhouwq\dataset_cwe\datasets'
+$datasets = '<dataset-root>'
 $splits = '<output>\splits'
 $features = '<output>\feature_cache'
 $graphs = '<output>\graph_cache'
@@ -60,6 +61,15 @@ python reproducibility/train.py `
   --external-prepared '<aws-variant-graph-cache>\index.json'
 
 python reproducibility/aggregate_results.py --runs $runs --output '<output>\results_summary.json'
+```
+
+For a small-family protocol, add the following training options. Dynamic candidates are drawn only from positive C fragments already assigned to the training split, so validation and test families remain isolated.
+
+```powershell
+  --dynamic-negatives --rank-weight 0.5 `
+  --shared-encoder --pair-interactions `
+  --optimizer adamw --lr 1e-3 --weight-decay 1e-4 `
+  --epochs 60 --patience 8 --min-auc-improvement 1e-4
 ```
 
 Use `profile_inference.py` with a saved checkpoint to measure synchronized CUDA inference time and peak allocated memory. Every JSON run record contains the full configuration, selected threshold, split sizes, excluded pair counts, epoch history, logits, labels, and internal/external metrics.

@@ -74,22 +74,17 @@ For a small-family protocol, add the following training options. Dynamic candida
 
 Use `profile_inference.py` with a saved checkpoint to measure synchronized CUDA inference time and peak allocated memory. Every JSON run record contains the full configuration, selected threshold, split sizes, excluded pair counts, epoch history, logits, labels, and internal/external metrics.
 
-For a frozen query--positive--negative manifest, `evaluate_ranking_diagnostic.py` loads an existing checkpoint and its validation-selected threshold without fitting or tuning on the diagnostic set. It reports pair metrics, within-query ranking, low-lexical positive accuracy, high-lexical negative false-positive rate, and the subset in which identifier/number Jaccard favors the negative candidate. Run it once for each variant and seed, then aggregate the JSON outputs with `summarize_ranking_diagnostic.py`:
+## Reviewer package scope
 
-```powershell
-python reproducibility/evaluate_ranking_diagnostic.py `
-  --datasets $datasets --corpus AWS `
-  --manifest '<frozen-diagnostic>.jsonl' `
-  --features '<aws-feature-index>.json' `
-  --prepared '<aws-variant-graph-cache>\index.json' `
-  --checkpoint '<runs>\full_seed1234.pt' `
-  --training-result '<runs>\full_seed1234.json' `
-  --variant full --seed 1234 `
-  --output '<diagnostic-results>\full_seed1234.json'
+This branch contains only the implementation and utilities needed for the experiments reported in the revised manuscript and response letter:
 
-python reproducibility/summarize_ranking_diagnostic.py `
-  --results '<diagnostic-results>' --output-dir '<diagnostic-summary>'
-```
+- the corrected CodeBERT, DDG, NCS, graph-alignment, and per-graph t-SVD/CP pipeline;
+- full TensorGAT, TensorGCN, and the reported view/CP/t-SVD ablations;
+- class- or family-disjoint split construction, including Juliet n1/n2/n3;
+- the RealRepo-SDK and TransLibEval external-evaluation protocol; and
+- result aggregation and synchronized efficiency profiling.
+
+Unreported exploratory evaluations and their result files are not included.
 
 ## Scope
 

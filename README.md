@@ -1,6 +1,6 @@
 # TensorGAT
 
-TensorGAT represents a function with four aligned graph views: abstract syntax (AST), control flow (CFG), data dependence (DDG), and natural code sequence (NCS). The revised implementation follows the paper's model definition and evaluates Python--Java function-pair matching.
+TensorGAT represents a function with four aligned graph views: abstract syntax (AST), control flow (CFG), data dependence (DDG), and natural code sequence (NCS). The revised implementation follows the paper's model definition and evaluates cross-language function-pair matching.
 
 ## Revision status
 

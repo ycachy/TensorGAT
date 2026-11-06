@@ -14,7 +14,7 @@ This directory implements the model and protocol described in the revised paper.
 
 ## Data package
 
-Download the public archive from <https://drive.google.com/drive/folders/1aMq1cyCNnibq9v9DWRASwKtQN7u5LgUr?usp=drive_link>. The folder contains `dataset.rar` (6.21 GB) and `README.en.md`. Extract the archive and set ``$datasets`` in the commands below to the extracted dataset root. Split manifests and generated caches remain separate outputs so the archive can be checked independently of model training.
+Download the public archive from <https://drive.google.com/drive/folders/1aMq1cyCNnibq9v9DWRASwKtQN7u5LgUr?usp=drive_link>. The folder contains `dataset.rar` (6.21 GB) and `README.en.md`. Extract the archive and set `$datasets` in the commands below to the extracted dataset root. Split manifests and generated caches remain separate outputs so the archive can be checked independently of model training.
 ## Environment
 
 The reported rerun used Python 3.9, CUDA 12.4, an NVIDIA RTX 4090, and the versions in `requirements.txt`. CodeBERT is frozen; cached features must be regenerated when source bytes, parser output, or the model checkpoint changes.

@@ -38,10 +38,10 @@ All generated features and graph caches are content-addressed or tied to a recor
 
 ## Task boundary
 
-The revision evaluates cross-language function-pair matching. It does not implement single-function vulnerability detection, repository-level code understanding, or an LLM baseline. Original LLM call records were unavailable, so the revised evaluation does not report unreproducible LLM scores.
+The revision evaluates cross-language function-pair matching. It does not implement single-function vulnerability detection or repository-level code understanding. The paper reports audited fixed-prompt LLM comparisons as a separate evaluation; this repository does not invoke remote model APIs or redistribute provider-side call logs.
 
 ## Data
 
-Datasets are not redistributed in this repository. Supply the extracted graph/source corpus with `--datasets` and use frozen JSONL pair manifests. The scripts record filtering counts and alignment coverage so that a changed corpus cannot silently reproduce a different experiment under the same name.
+The archived dataset package used for the revised experiments is publicly available at <https://drive.google.com/drive/folders/1aMq1cyCNnibq9v9DWRASwKtQN7u5LgUr?usp=drive_link>. The folder contains `dataset.rar` (6.21 GB) and `README.en.md`. Extract the archive, pass its root with `--datasets`, and use the released split-generation utilities or frozen JSONL manifests for the corresponding protocol.
 
-The original graph-extraction utilities are available at <https://github.com/smallsuccful/Treetools.git>.
+The scripts record filtering counts, split assignments, configuration values, and alignment coverage so that a changed corpus cannot silently reproduce a different experiment under the same name. Original source links remain documented in the paper, and the graph-extraction utilities are available at <https://github.com/smallsuccful/Treetools.git>.

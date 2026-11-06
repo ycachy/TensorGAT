@@ -12,6 +12,9 @@ This directory implements the model and protocol described in the revised paper.
 - `train.py` selects checkpoints by validation ROC-AUC and freezes a validation-F1 threshold before internal and external testing. It also records results at threshold 0.5.
 - For balanced data with few semantic families, `train.py` can resample a leakage-safe difficulty-matched negative for every training anchor and epoch, keep each positive/negative pair in one batch, and combine BCE with a within-anchor ranking loss. n1 samples within an operation family, n2 within a CWE across operation families, and n3 across CWEs. `--shared-encoder --pair-interactions` compares graph embeddings in a shared space without changing the four-view TensorGAT encoder.
 
+## Data package
+
+Download the public archive from <https://drive.google.com/drive/folders/1aMq1cyCNnibq9v9DWRASwKtQN7u5LgUr?usp=drive_link>. The folder contains `dataset.rar` (6.21 GB) and `README.en.md`. Extract the archive and set ``$datasets`` in the commands below to the extracted dataset root. Split manifests and generated caches remain separate outputs so the archive can be checked independently of model training.
 ## Environment
 
 The reported rerun used Python 3.9, CUDA 12.4, an NVIDIA RTX 4090, and the versions in `requirements.txt`. CodeBERT is frozen; cached features must be regenerated when source bytes, parser output, or the model checkpoint changes.
@@ -93,4 +96,4 @@ python reproducibility/summarize_ranking_diagnostic.py `
 
 ## Scope
 
-This pipeline evaluates Python--Java function-pair matching. It does not implement single-function vulnerability detection or an LLM baseline. The original LLM call logs were unavailable, so no LLM score is reproduced by these scripts.
+This pipeline evaluates cross-language function-pair matching and does not implement single-function vulnerability detection. The paper reports fixed-prompt LLM comparisons separately; these local scripts do not invoke remote model APIs or reproduce provider-side calls.
